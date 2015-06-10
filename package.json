@@ -1,0 +1,33 @@
+{
+  "name": "brobbot-sqlite-brain",
+  "version": "0.1.0",
+  "description": "SQLite adapter for brobbot",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/b3nj4m/brobbot-sqlite.git"
+  },
+  "keywords": [
+    "brobbot",
+    "sqlite",
+    "sqlite3"
+  ],
+  "author": "Ben Robbins <ben.robbins@gmail.com> (https://b3nj4m.com/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/b3nj4m/brobbot-sqlite-brain/issues"
+  },
+  "homepage": "https://github.com/b3nj4m/brobbot-sqlite-brain#readme",
+  "peerDependencies": {
+    "brobbot": "6.x"
+  },
+  "dependencies": {
+    "lodash": "^3.9.3",
+    "msgpack": "^0.2.6",
+    "q": "^1.4.1",
+    "sqlite3": "^3.0.8"
+  }
+}
