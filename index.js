@@ -10,6 +10,7 @@ function SqliteBrain(robot, useMsgpack) {
   Brain.call(this, robot);
 
   this.robot = robot;
+  this.currentTransaction = Q();
 
   this.useMsgpack = useMsgpack === undefined ? true : useMsgpack;
 
@@ -19,15 +20,25 @@ function SqliteBrain(robot, useMsgpack) {
   this.dbName = process.env.BROBBOT_SQLITE_DB_NAME || 'brobbot';
   this.tableName = process.env.BROBBOT_SQLITE_TABLE_NAME || 'brobbot';
 
-  try {
-    this.client = new sqlite.Database(this.dbName);
-    this.robot.logger.info("Successfully connected to pg");
-  }
-  catch (err) {
-    this.robot.logger.error("Failed to connect to pg: " + err);
-  }
+  var openDefer = Q.defer();
+  var open = openDefer.promise;
 
-  this.ready = this.initTable();
+  this.client = new sqlite.Database(this.dbName, function(err) {
+    if (err) {
+      openDefer.reject(err);
+    }
+    else {
+      openDefer.resolve();
+    }
+  });
+
+  open.then(function() {
+    this.robot.logger.info("Successfully connected to sqlite");
+  }, function(err) {
+    this.robot.logger.error("Failed to connect to sqlite: " + err);
+  });
+
+  this.ready = open.then(this.initTable.bind(this));
 }
 
 SqliteBrain.prototype = Object.create(Brain);
@@ -151,7 +162,7 @@ SqliteBrain.prototype.lfindindex = function(values, findValue) {
   var self = this;
 
   return _.findIndex(values, function(value) {
-    return value === findValue;
+    return _.isEqual(value, findValue);
   });
 };
 
@@ -243,7 +254,7 @@ SqliteBrain.prototype.lindex = function(key, index) {
   var self = this;
 
   return this.lgetall(key).then(function(values) {
-    return values ? values[index] : null;
+    return values && values[index] !== undefined ? values[index] : null;
   });
 };
 
@@ -265,7 +276,7 @@ SqliteBrain.prototype.lrem = function(key, value) {
   return this.transaction(function() {
     return self.lgetall(key).then(function(values) {
       if (values) {
-        var newValues = _.without(values, value);
+        var newValues = _.reject(values, value, _.isEqual);
 
         return self.updateValue(self.key(key), newValues, false).then(function() {
           return values.length - newValues.length;
@@ -295,7 +306,7 @@ SqliteBrain.prototype.sadd = function(key, value) {
 
 SqliteBrain.prototype.sismember = function(key, value) {
   return this.smembers(key, value).then(function(values) {
-    return values ? _.contains(values, value) : false;
+    return values ? _.find(values, _.isEqual.bind(_, value)) !== undefined : false;
   });
 };
 
@@ -462,7 +473,7 @@ SqliteBrain.prototype.hincrby = function(table, key, num) {
       if (val !== null) {
         num = val + num;
       }
-      return this.updateSubValue(table, key, num).then(_.constant(num));
+      return self.updateSubValue(table, key, num).then(_.constant(num));
     });
   });
 };
@@ -473,10 +484,14 @@ SqliteBrain.prototype.close = function() {
 
 SqliteBrain.prototype.serialize = function(value) {
   if (this.useMsgpack) {
-    if (_.isObject(value)) {
+    try {
       return msgpack.pack(value);
     }
-    return value.toString();
+    catch (err) {
+      console.error('SQLite error serializing data:', err.stack);
+
+      return value.toString();
+    }
   }
 
   return JSON.stringify(value);
@@ -510,7 +525,9 @@ SqliteBrain.prototype.serializeUser = function(user) {
 
 SqliteBrain.prototype.deserializeUser = function(obj) {
   if (obj) {
-    obj = this.deserialize(obj);
+    if (!_.isObject(obj)) {
+      obj = this.deserialize(obj);
+    }
     if (obj && obj.id) {
       return new User(obj.id, obj);
     }
@@ -523,7 +540,7 @@ SqliteBrain.prototype.users = function() {
 
   return this.getValues(this.usersKey()).then(function(results) {
     return _.map(results, function(result) {
-      return self.deserializeUser(result.value);
+      return self.deserializeUser(result);
     });
   });
 };
@@ -557,7 +574,7 @@ SqliteBrain.prototype.userForName = function(name) {
 
   return this.users().then(function(users) {
     return _.find(users, function(user) {
-      return user.name && user.name.toLowerCase() === name;
+      return user && user.name.toLowerCase() === name;
     }) || null;
   });
 };
@@ -579,7 +596,7 @@ SqliteBrain.prototype.usersForFuzzyName = function(fuzzyName) {
 
   return this.usersForRawFuzzyName(fuzzyName).then(function(matchedUsers) {
     var exactMatch = _.find(matchedUsers, function(user) {
-      return user.name.toLowerCase() === fuzzyName;
+      return user && user.name.toLowerCase() === fuzzyName;
     });
     return exactMatch && [exactMatch] || matchedUsers;
   });
