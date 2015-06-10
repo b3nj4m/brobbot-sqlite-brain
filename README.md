@@ -18,6 +18,8 @@ npm install --save brobbot-sqlite-brain
 
 Set `BROBBOT_SQLITE_DB_NAME` to change the default db name (`'brobbot'`).
 
+This is also the path to your database file on disk, so be wary.
+
 ```bash
 BROBBOT_SQLITE_DB_NAME=robotz ./index.sh -b sqlite
 ```
