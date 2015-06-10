@@ -243,7 +243,7 @@ SqliteBrain.prototype.lindex = function(key, index) {
   var self = this;
 
   return this.lgetall(key).then(function(values) {
-    return values ? values[index] ? null;
+    return values ? values[index] : null;
   });
 };
 
