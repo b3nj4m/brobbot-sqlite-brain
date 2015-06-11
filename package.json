@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/b3nj4m/brobbot-sqlite.git"
+    "url": "git+https://github.com/b3nj4m/brobbot-sqlite-brain.git"
   },
   "keywords": [
     "brobbot",
